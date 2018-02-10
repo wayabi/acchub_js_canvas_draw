@@ -1,0 +1,91 @@
+<html>
+<head>
+<script type="text/javascript">
+class Hoge {
+	constructor(){
+		this.canvas = document.querySelector('#canvas');
+		this.ctx = this.canvas.getContext('2d');
+		this.time_last = new Date().getTime();
+		this.hz = 0;
+		this.power = 0;
+		// normalized shaking data. from -1 to 1.
+		this.normalized_shake = 0.0;
+		this.current_span = 1.0;
+		this.num_client = 0;
+		this.text1 = document.querySelector('#text1');
+	}
+	
+	http_get()
+	{
+	    var xmlHttp = new XMLHttpRequest();
+	    xmlHttp.open( "GET", "http://acchub.net/summary/jscd", false ); // false for synchronous request
+	    xmlHttp.send( null );
+	    return xmlHttp.responseText;
+	}
+
+	get_data()
+	{
+		var json = this.http_get();
+		var j = JSON.parse(json);
+		this.hz = j["hz"];
+		this.power = j["power"];
+		this.num_client = j["num_client"];
+		
+	}
+	
+	get_normalized_shake()
+	{
+		if(this.hz < 0.001){
+			this.normalized_shake = 0.0;
+			return;
+		}
+		var d = new Date();
+		var time_now = d.getTime();
+		
+		//ideally 1000.
+		var span = 1300.0 / this.hz;
+		if(time_now >= this.time_last + span){
+			this.time_last = this.time_last+span;
+		}
+
+		var time0 = (time_now - this.time_last) / span;
+		this.normalized_shake = Math.cos(2*Math.PI*time0);
+	}
+	
+	draw(){		
+		this.get_normalized_shake();
+
+		this.text1.innerHTML = "Current accacc user : "+this.num_client;
+		
+		this.ctx.clearRect( 0, 0, this.canvas.width, this.canvas.height );
+		var xx = 50;
+		var yy = this.power*0.5*this.normalized_shake * 10.0 + 50.0;
+		var rr = 10;
+		this.ctx.beginPath();
+		this.ctx.arc(xx, yy, rr, 0, 2*Math.PI);
+		this.ctx.stroke();
+	}
+	
+    init(){
+		var fps_draw = 30;
+		var fps_get_data = 2;
+        setInterval(this.draw.bind(this), 1000/fps_draw);
+        setInterval(this.get_data.bind(this), 1000/fps_get_data);
+    }
+    
+	simulate(){
+		this.draw();
+	}
+}
+
+setTimeout(() => {
+  new Hoge().init();
+}, 10);
+</script>
+</head>
+
+<body>
+	<p id="text1">Current accacc user : 0</p>
+	<canvas id="canvas" width="100", height="100"></canvas>
+</body>
+</html>
