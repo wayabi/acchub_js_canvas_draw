@@ -17,10 +17,10 @@ class Hoge {
 	
 	http_get()
 	{
-	    var xmlHttp = new XMLHttpRequest();
-	    xmlHttp.open( "GET", "http://acchub.net/summary/jscd", false ); // false for synchronous request
-	    xmlHttp.send( null );
-	    return xmlHttp.responseText;
+		var xmlHttp = new XMLHttpRequest();
+		xmlHttp.open( "GET", "http://acchub.net/summary/jscd", false ); // false for synchronous request
+		xmlHttp.send( null );
+		return xmlHttp.responseText;
 	}
 
 	get_data()
@@ -30,7 +30,6 @@ class Hoge {
 		this.hz = j["hz"];
 		this.power = j["power"];
 		this.num_client = j["num_client"];
-		
 	}
 	
 	get_normalized_shake()
@@ -66,21 +65,18 @@ class Hoge {
 		this.ctx.stroke();
 	}
 	
-    init(){
+	init(){
 		var fps_draw = 30;
 		var fps_get_data = 2;
-        setInterval(this.draw.bind(this), 1000/fps_draw);
-        setInterval(this.get_data.bind(this), 1000/fps_get_data);
-    }
-    
-	simulate(){
-		this.draw();
+		setInterval(this.draw.bind(this), 1000/fps_draw);
+		setInterval(this.get_data.bind(this), 1000/fps_get_data);
 	}
 }
 
 setTimeout(() => {
-  new Hoge().init();
+	new Hoge().init();
 }, 10);
+
 </script>
 </head>
 
