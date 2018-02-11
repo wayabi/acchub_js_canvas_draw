@@ -1,0 +1,170 @@
+<html>
+<head>
+<script type="text/javascript">
+class ClientInfo {
+    constructor(w, h, t){
+        this.w = w;
+        this.h = h;
+        this.x = Math.random() * w;
+        this.y = Math.random() * h;
+        this.vx = 1.0;
+        this.vy = 0.0;
+        var xy = this.rotate(this.vx, this.vy, Math.random()*Math.PI*2);
+        this.vx = xy[0];
+        this.vy = xy[1];
+        //for check_die
+        this.time_update = t;
+        this.hz = 0.0;
+        this.power = 0.0;
+        //get random color from #000000 to #ffffff.
+        this.color = "#"+((1<<24)*Math.random()|0).toString(16);
+    }
+
+    move(){
+        //if hz < 2.0 turn left
+        //if hz > 2.0 turn right
+        var radias_move = Math.min(this.hz, 4) - 2.0;
+        radias_move = radias_move * Math.PI * 0.05;
+        var xy = this.rotate(this.vx, this.vy, radias_move);
+        this.vx = xy[0];
+        this.vy = xy[1];
+
+        //shake power become move speed.
+        var speed = this.power * 0.5;
+        this.x += this.vx * speed;
+        this.y += this.vy * speed;
+
+        //not to over the canvas space
+        if(this.x < 0) this.x = 0;
+        if(this.y < 0) this.y = 0;
+        if(this.x > this.w) this.x = this.w;
+        if(this.y > this.h) this.y = this.h;
+    }
+
+    update_hz_power(hz, power, t){
+        this.time_update = t;
+        this.hz = hz;
+        this.power = power;
+    }
+
+    check_die(t){
+        var t_diff = t - this.time_update;
+        //if no update for 2 second, it's die.
+        if(t_diff > 1000*2) return true;
+        return false;
+    }
+
+    rotate(x, y, angle){
+        var cos = Math.cos(angle);
+        var sin = Math.sin(angle);
+        var nx = (cos * x) + (sin * y);
+        var ny = (cos * y)- (sin * x);
+        return [nx, ny];
+    }
+
+    draw(ctx){
+        ctx.beginPath();
+        //draw circle
+        ctx.arc(this.x, this.y, 5, 0, 2*Math.PI);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.stroke();
+    }
+}
+
+class CanvasDraw {
+	constructor(){
+		this.canvas = document.querySelector('#canvas');
+		this.ctx = this.canvas.getContext('2d');
+		this.time_last = new Date().getTime();
+		this.hz = 0;
+		this.power = 0;
+		// normalized shaking data. from -1 to 1.
+		this.normalized_shake = 0.0;
+		this.current_span = 1.0;
+		this.num_client = 0;
+		this.text1 = document.querySelector('#text1');
+        this.clients = new Array();
+
+        var d = new Date();
+        this.t = d.getTime();
+        this.w = this.canvas.width;
+        this.h = this.canvas.height;
+        this.topic_text = document.querySelector('#topic');
+	}
+	
+	http_get()
+	{
+	    var xmlHttp = new XMLHttpRequest();
+	    xmlHttp.open( "GET", "http://acchub.net/all/"+this.topic_text.value, false ); // false for synchronous request
+	    xmlHttp.send( null );
+	    return xmlHttp.responseText;
+	}
+
+	get_data()
+	{
+		var json = this.http_get();
+		var j = JSON.parse(json);
+        var d = new Date();
+        this.t = d.getTime();
+        for(var i=0;i<j.length;++i){
+            var client_info = j[i];
+            if(this.clients[client_info["id"]] == undefined){
+                var ci = new ClientInfo(this.w, this.h, this.t);
+                this.clients[client_info["id"]] = ci;
+            }
+            var c = this.clients[client_info["id"]];
+            c.update_hz_power(client_info["hz"], client_info["power"], this.t);
+        }
+
+        var count_client = 0;
+		for(var key in this.clients){
+            var flag = this.clients[key].check_die(this.t);
+            if(flag){
+                delete this.clients[key];
+            }
+            ++count_client;
+        }
+        this.num_client = count_client;
+        this.text1.innerHTML = "Current accacc user : "+this.num_client;
+	}
+	
+	draw(){
+        
+        this.ctx.clearRect(0, 0, this.w, this.h);
+		for(var key in this.clients){
+            this.clients[key].move();
+            this.clients[key].draw(this.ctx);
+        }
+	}
+	
+    init(){
+		var fps_draw = 10;
+		var fps_get_data = 2;
+        setInterval(this.draw.bind(this), 1000/fps_draw);
+        setInterval(this.get_data.bind(this), 1000/fps_get_data);
+    }
+}
+
+setTimeout(() => {
+  new CanvasDraw().init();
+}, 10);
+</script>
+</head>
+
+<body>
+    <h1>Sample for all client data</h1>
+    <p><a href="https://github.com/wayabi/acchub_js_canvas_draw">Sample source code</a></p>
+    <p>Client object(random colored circle) are created and deleted.<br />If client hz < 2.0 turn left. hz > 2.0 turn right.<br />Shaking power as moving speed.</p>
+    <p />
+    <p id="text1">Current accacc user : 0</p>
+    <p>GET from http://acchub.net/all/<input type="text" id="topic" value="debug/random"> <- you can check any topic you set.</p>
+    
+    <canvas id="canvas" style="border: solid 3px #000;" width="400", height="400"></canvas>
+    
+    <h1>全クライアントデータ取得サンプル</h1>
+    <p>クライアントオブジェクト（ランダム色の円）の生成と破棄のサンプル。<br />hz < 2.0 の場合は左に、hz > 2.0 の場合は右に旋回します。<br />powerは移動速度となります。</p>
+    <p>上部のテキスト入力フォームに好きなトピックを入力することができます。</p>
+    <p />
+</body>
+</html>
